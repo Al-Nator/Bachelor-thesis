@@ -1,0 +1,58 @@
+project: vkr-cnn-vit
+output_dir: outputs
+seeds: [42, 123, 2026]
+
+dataset:
+  root: data/OfficeHomeDataset_10072016
+  protocol: lodo
+  heldout_domain: Art
+  source_domains: [Product, RealWorld]
+  target_domains: [Art, Clipart]
+  domain: Product
+  visible_domains: [Art, Clipart, Product, RealWorld]
+  known_fraction: 0.7
+  unknown_classes:
+    - Folder
+    - Laptop
+    - Mop
+    - Paper_Clip
+    - Pencil
+    - Ruler
+    - Sink
+    - Speaker
+    - ToothBrush
+    - Trash_Can
+
+data:
+  batch_size: 16
+  workers: 4
+  image_size: 256
+
+model:
+  pretrained: true
+  last_blocks: 2
+  feature_pool:
+    linear_probe: cls_patch_mean
+    partial_finetune: cls_patch_mean
+    full_finetune: cls_patch_mean
+
+train:
+  epochs: 50
+  patience: 7
+  lr: 0.0001
+  weight_decay: 0.05
+  label_smoothing: 0.0
+  physical_batch_size:
+    linear_probe: 128
+    partial_finetune: 64
+    full_finetune: 32
+  effective_batch_size:
+    linear_probe: 128
+    partial_finetune: 64
+    full_finetune: 32
+  warmup_epochs: 3
+  warmup_start_factor: 0.01
+  layer_decay: 0.75
+  amp: true
+  profile: true
+  cache_embeddings: true

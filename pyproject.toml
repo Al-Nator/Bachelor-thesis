@@ -1,0 +1,17 @@
+[project]
+name = "vkr-cnn-vit"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+  "torch",
+  "torchvision",
+  "timm>=1.0.20",
+  "numpy",
+  "scikit-learn",
+  "scipy",
+  "Pillow",
+  "PyYAML",
+  "tqdm",
+  "matplotlib",
+  "imagecorruptions",
+]

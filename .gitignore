@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments and local env
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+# uv / local caches
+.python-version
+.uv-cache/
+
+# Local IDE/editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Codex / agent-local files
+.agents/
+.codex/
+AGENTS.md
+PLAN.md
+project_prompt.md
+
+# Data and generated experiment artifacts
+data/
+outputs/
+
+# Model/checkpoint/prediction artifacts outside outputs
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.npz
+*.npy
+
+# Generated reports and notebooks state
+notebooks/.ipynb_checkpoints/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
