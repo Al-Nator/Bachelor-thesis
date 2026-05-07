@@ -48,8 +48,8 @@ def main() -> None:
     batch = batch_size(cfg, mode)
     id_loader = make_loader(OfficeHomeDataset(splits["id_test"], class_to_idx, tf), batch, False, cfg["data"]["workers"])
     unk_loader = make_loader(OfficeHomeDataset(splits["unknown_test"], class_to_idx, tf), batch, False, cfg["data"]["workers"])
-    id_logits, id_labels, id_domains, id_paths = predict(model, id_loader, dev, desc="id_test")
-    unk_logits, unk_labels, unk_domains, unk_paths = predict(model, unk_loader, dev, desc="unknown_test")
+    id_logits, id_labels, id_domains, id_paths = predict(model, id_loader, dev, desc="id_test", use_amp=cfg["train"].get("amp", True))
+    unk_logits, unk_labels, unk_domains, unk_paths = predict(model, unk_loader, dev, desc="unknown_test", use_amp=cfg["train"].get("amp", True))
     out = Path(args.out) if args.out else Path("outputs/metrics") / Path(args.checkpoint).parent.name / "ood.json"
     pred_dir = _prediction_dir(out)
     save_predictions(pred_dir / "ood_id_test", id_logits, id_labels, id_domains, id_paths)

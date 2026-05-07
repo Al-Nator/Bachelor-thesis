@@ -60,11 +60,11 @@ def main() -> None:
         for severity in severities:
             ds = OfficeHomeDataset(splits[args.split], class_to_idx, tf, Corruption(name, severity, args.seed))
             loader = make_loader(ds, batch, False, cfg["data"]["workers"])
-            logits, labels, _, _ = predict(model, loader, dev)
+            logits, labels, _, _ = predict(model, loader, dev, use_amp=cfg["train"].get("amp", True))
             rows.append({"corruption": name, "severity": severity, **classification_metrics(labels, logits)})
     clean_ds = OfficeHomeDataset(splits[args.split], class_to_idx, tf)
     clean_loader = make_loader(clean_ds, batch, False, cfg["data"]["workers"])
-    clean_logits, clean_labels, _, _ = predict(model, clean_loader, dev)
+    clean_logits, clean_labels, _, _ = predict(model, clean_loader, dev, use_amp=cfg["train"].get("amp", True))
     clean_f1 = classification_metrics(clean_labels, clean_logits)["macro_f1"]
     mean = {k: sum(r[k] for r in rows) / len(rows) for k in rows[0] if isinstance(rows[0][k], float)}
     summary = {

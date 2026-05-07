@@ -67,7 +67,7 @@ def _corruption_rows(root: Path) -> list[dict[str, str | int | float]]:
         if not _current_recipe(path.parent.name, meta, logs_root):
             continue
         source = path.name
-        prefix = "corruption_subset" if path.stem != "corruptions" else "corruption"
+        prefix = _corruption_prefix(path.stem)
         with path.open("r", encoding="utf-8", newline="") as f:
             for row in csv.DictReader(f):
                 corruption = row["corruption"]
@@ -82,6 +82,14 @@ def _corruption_rows(root: Path) -> list[dict[str, str | int | float]]:
                     name = f"{prefix}/{corruption}/{metric}" if severity == "0" else f"{prefix}/{corruption}/s{severity}/{metric}"
                     out.append({**meta, "metric": name, "value": value, "source": source})
     return out
+
+
+def _corruption_prefix(stem: str) -> str:
+    if stem == "corruptions":
+        return "corruption"
+    if stem == "corruptions_subset":
+        return "corruption_subset"
+    return stem.replace("corruptions_", "corruption_")
 
 
 def _write_long(rows: list[dict[str, str | int | float]], path: Path) -> None:

@@ -49,6 +49,8 @@ vkr-cnn-vit/
 - `scripts/eval_ood.py` — semantic OOD evaluation.
 - `scripts/eval_corruptions.py` — полный или subset corruption evaluation.
 - `scripts/run_corruption_subset.sh` — быстрый corruption subset на 16 checkpoint.
+- `scripts/precompute_corruptions_s3s5.sh` — precompute JPEG-shards и linear embeddings для `severity 3,5`.
+- `scripts/run_corruptions_s3s5_all_checkpoints.sh` — ACS@S3,S5 по всем checkpoint через precompute.
 - `scripts/aggregate.py` — сбор метрик в итоговые CSV-таблицы.
 
 ## Подготовка
@@ -347,6 +349,15 @@ uv run python scripts/eval_corruptions.py \
 --split id_test
 ```
 
+ACS@S3,S5 для всех checkpoint через precompute:
+
+```bash
+bash scripts/precompute_corruptions_s3s5.sh
+bash scripts/run_corruptions_s3s5_all_checkpoints.sh
+```
+
+Первый скрипт один раз создаёт JPEG-shards и embeddings для `linear_probe`. Второй прогоняет все checkpoint; для `linear_probe` используются precomputed embeddings, для `partial_finetune` и `full_finetune` используется AMP inference по JPEG-shards.
+
 ### Агрегация
 
 ```bash
@@ -360,6 +371,7 @@ outputs/metrics/**/metrics.json
 outputs/metrics/**/ood.json
 outputs/metrics/**/corruptions.csv
 outputs/metrics/**/corruptions_subset.csv
+outputs/metrics/**/corruptions_s3_s5.csv
 ```
 
 ## Outputs

@@ -7,13 +7,17 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
+from .utils import amp_dtype
+
 
 @torch.inference_mode()
-def predict(model: torch.nn.Module, loader, device: torch.device, desc: str = "eval") -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def predict(model: torch.nn.Module, loader, device: torch.device, desc: str = "eval", use_amp: bool = False) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     model.eval()
     logits, labels, domains, paths = [], [], [], []
     for x, y, d, p in tqdm(loader, desc=desc, leave=False):
-        out = model(x.to(device, non_blocking=True)).float().cpu().numpy()
+        x = x.to(device, non_blocking=True)
+        with torch.autocast(device_type=device.type, dtype=amp_dtype(), enabled=use_amp and device.type == "cuda"):
+            out = model(x).float().cpu().numpy()
         logits.append(out)
         labels.append(y.numpy())
         domains.extend(d)

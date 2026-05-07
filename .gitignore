@@ -46,6 +46,7 @@ outputs/
 *.onnx
 *.npz
 *.npy
+*.sh
 
 # Generated reports and notebooks state
 notebooks/.ipynb_checkpoints/
