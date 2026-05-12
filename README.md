@@ -39,18 +39,14 @@ vkr-cnn-vit/
 - `src/corruptions.py` — ImageNet-C-style corruptions через `imagecorruptions`.
 - `src/ood.py` — semantic OOD report по MSP и Energy.
 
-Основные скрипты:
+Основные Python-модули запуска:
 
 - `scripts/train_lodo.py` — единый CLI для `lodo`, `cross_domain`, `in_domain`, `semantic_ood`.
-- `scripts/run_overnight.sh` — основной план обучения на 65 запусков.
-- `scripts/run_large_scaling.sh` — DINOv3 ConvNeXt Large vs DINOv3 ViT-L, linear probing, 8 запусков.
-- `scripts/run_large_partial.sh` — Large-пара, partial fine-tuning, 8 запусков.
-- `scripts/run_remaining_61_priority.sh` — недостающие ResNet/Large протоколы, 61 запуск по приоритету.
+- `scripts/make_semantic_ood_split.py` — фиксированный split known/unknown классов.
 - `scripts/eval_ood.py` — semantic OOD evaluation.
 - `scripts/eval_corruptions.py` — полный или subset corruption evaluation.
-- `scripts/run_corruption_subset.sh` — быстрый corruption subset на 16 checkpoint.
-- `scripts/precompute_corruptions_s3s5.sh` — precompute JPEG-shards и linear embeddings для `severity 3,5`.
-- `scripts/run_corruptions_s3s5_all_checkpoints.sh` — ACS@S3,S5 по всем checkpoint через precompute.
+- `scripts/precompute_corruptions_s3s5.py` — precompute JPEG-shards и linear embeddings для выбранных severity.
+- `scripts/eval_corruptions_precomputed.py` — corruption evaluation по precomputed JPEG-shards/embeddings.
 - `scripts/aggregate.py` — сбор метрик в итоговые CSV-таблицы.
 
 ## Подготовка
@@ -111,7 +107,6 @@ configs/officehome_resnet50.yaml
 configs/officehome_dinov3_small.yaml
 configs/officehome_dinov3_base.yaml
 configs/officehome_dinov3_large.yaml
-configs/officehome_dinov3_base_full_finetune.yaml
 ```
 
 Модели:
@@ -147,15 +142,21 @@ resnet50
 - AMP включён;
 - gradient accumulation используется, если effective batch больше physical batch;
 - warmup и LLRD применяются для `partial_finetune` и `full_finetune`.
+- learning rate: `3e-4` для ResNet-50 и DINOv3 Small, `1e-4` для DINOv3 Base/Large;
+- weight decay: `0.05`;
+- patience: `7`.
 
 Batch recipe:
 
 
-| Режим              | Effective batch |
-| ------------------ | --------------- |
-| `linear_probe`     | 128             |
-| `partial_finetune` | 64              |
-| `full_finetune`    | 32              |
+| Уровень модели | Режим              | Physical batch | Effective batch |
+| -------------- | ------------------ | -------------: | --------------: |
+| ResNet/Small/Base | `linear_probe`     | 128 | 128 |
+| ResNet/Small/Base | `partial_finetune` | 64  | 64  |
+| ResNet/Small/Base | `full_finetune`    | 32  | 32  |
+| Large             | `linear_probe`     | 128 | 128 |
+| Large             | `partial_finetune` | 32  | 64  |
+| Large             | `full_finetune`    | 8   | 32  |
 
 
 Для `linear_probe` используется кэширование embeddings:
@@ -229,54 +230,28 @@ uv run python scripts/train_lodo.py \
   --seed 42
 ```
 
-### Основной план
+### Экспериментальная матрица
 
-Полный основной план на 65 обучений:
+Итоговые результаты получены для `202` checkpoint: `lodo`, `in_domain`, `cross_domain`, `semantic_ood`, три режима обучения и модели `ResNet-50`, DINOv3 ConvNeXt/ViT уровней `Small`, `Base`, `Large`.
 
-```bash
-bash scripts/run_overnight.sh
-```
-
-Стадии:
+Все отдельные обучения запускаются одним CLI `scripts/train_lodo.py`. Для повторения другого seed достаточно передать `--seed`, например:
 
 ```bash
-STAGE=main_lodo bash scripts/run_overnight.sh
-STAGE=adaptation bash scripts/run_overnight.sh
-STAGE=upper_bound bash scripts/run_overnight.sh
-STAGE=small_partial bash scripts/run_overnight.sh
-STAGE=small_full bash scripts/run_overnight.sh
-STAGE=small_all bash scripts/run_overnight.sh
-STAGE=semantic_ood bash scripts/run_overnight.sh
-STAGE=eval_ood bash scripts/run_overnight.sh
+uv run python scripts/train_lodo.py \
+  --config configs/officehome_dinov3_base.yaml \
+  --model dinov3_vit_b \
+  --mode partial_finetune \
+  --protocol lodo \
+  --heldout-domain Clipart \
+  --seed 123
 ```
 
-Другой seed:
+Для `Large` scaling используются те же протоколы и режимы, но конфиг `configs/officehome_dinov3_large.yaml` и модели:
 
-```bash
-SEED=123 bash scripts/run_overnight.sh
+```text
+dinov3_convnext_large
+dinov3_vit_l
 ```
-
-### Large scaling
-
-Large linear probing:
-
-```bash
-bash scripts/run_large_scaling.sh
-```
-
-Large partial fine-tuning:
-
-```bash
-bash scripts/run_large_partial.sh
-```
-
-Недостающие ResNet/Large протоколы в порядке приоритета:
-
-```bash
-bash scripts/run_remaining_61_priority.sh
-```
-
-Этот скрипт можно прерывать. При повторном запуске он пропускает готовые checkpoint’ы с `metrics.json`.
 
 ### Semantic OOD Evaluation
 
@@ -312,13 +287,7 @@ uv run python scripts/eval_corruptions.py \
 15 corruption types × 5 severity levels = 75 inference passes
 ```
 
-Быстрый subset:
-
-```bash
-bash scripts/run_corruption_subset.sh
-```
-
-Subset считает:
+Для быстрой проверки можно ограничить список corruption types и severity. Например, subset:
 
 ```text
 16 checkpoints × 5 corruption types × severities 1/3/5 = 240 inference passes
@@ -349,14 +318,34 @@ uv run python scripts/eval_corruptions.py \
 --split id_test
 ```
 
-ACS@S3,S5 для всех checkpoint через precompute:
+Для массовой оценки используется precompute JPEG-shards и embeddings для `linear_probe`. Полный ACS считается по всем `15 × 5 = 75` настройкам: `severity 1,2,3,4,5`.
 
 ```bash
-bash scripts/precompute_corruptions_s3s5.sh
-bash scripts/run_corruptions_s3s5_all_checkpoints.sh
+uv run python scripts/precompute_corruptions_s3s5.py \
+  --out outputs/corruption_cache/imagenet_c_full \
+  --severities 1 2 3 4 5 \
+  --image-size 256 \
+  --embeddings
 ```
 
-Первый скрипт один раз создаёт JPEG-shards и embeddings для `linear_probe`. Второй прогоняет все checkpoint; для `linear_probe` используются precomputed embeddings, для `partial_finetune` и `full_finetune` используется AMP inference по JPEG-shards.
+Оценка одного checkpoint по precomputed corruptions:
+
+```bash
+uv run python scripts/eval_corruptions_precomputed.py \
+  --checkpoint outputs/checkpoints/<run>/best.pt \
+  --cache outputs/corruption_cache/imagenet_c_full \
+  --severities 1 2 3 4 5 \
+  --out outputs/metrics/<run>/corruptions.csv
+```
+
+В текущем полном прогоне severity были посчитаны двумя частями и сохраняются как:
+
+```text
+outputs/metrics/<run>/corruptions_s3_s5.csv
+outputs/metrics/<run>/corruptions_s1_s2_s4.csv
+```
+
+Notebook объединяет эти части в полный `ACS` и сохраняет компактную таблицу `outputs/tables/acs_full.csv`.
 
 ### Агрегация
 
@@ -372,6 +361,7 @@ outputs/metrics/**/ood.json
 outputs/metrics/**/corruptions.csv
 outputs/metrics/**/corruptions_subset.csv
 outputs/metrics/**/corruptions_s3_s5.csv
+outputs/metrics/**/corruptions_s1_s2_s4.csv
 ```
 
 ## Outputs
@@ -399,8 +389,11 @@ outputs/
 │       ├── metrics.json
 │       ├── ood.json
 │       ├── corruptions.csv
-│       └── corruptions_subset.csv
+│       ├── corruptions_subset.csv
+│       ├── corruptions_s3_s5.csv
+│       └── corruptions_s1_s2_s4.csv
 ├── tables/
+│   ├── acs_full.csv
 │   ├── metrics_long.csv
 │   ├── summary.csv
 │   └── lodo_summary.csv
@@ -429,6 +422,12 @@ n, mean, std, mean_std
 
 ```text
 model, mode, seed, Art, Clipart, Product, RealWorld, mean_lodo_f1, worst_lodo_f1
+```
+
+`acs_full.csv` содержит компактную таблицу полного corruption score:
+
+```text
+protocol, model, mode, domain, seed, clean_macro_f1, acs_macro_f1, relative_drop, run
 ```
 
 Если для одной пары `protocol/model/mode/domain_or_heldout/seed/metric/source` есть несколько запусков, агрегатор берёт последний run по timestamp. Старые `outputs` можно не удалять, если нужен свежий recipe.

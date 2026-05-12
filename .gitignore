@@ -37,6 +37,7 @@ project_prompt.md
 # Data and generated experiment artifacts
 data/
 outputs/
+notebooks/
 
 # Model/checkpoint/prediction artifacts outside outputs
 *.pt
