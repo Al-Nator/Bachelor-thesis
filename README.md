@@ -232,7 +232,7 @@ uv run python scripts/train_lodo.py \
 
 ### Экспериментальная матрица
 
-Итоговые результаты получены для `202` checkpoint: `lodo`, `in_domain`, `cross_domain`, `semantic_ood`, три режима обучения и модели `ResNet-50`, DINOv3 ConvNeXt/ViT уровней `Small`, `Base`, `Large`.
+Итоговая экспериментальная матрица содержит `210` checkpoint. Для протоколов `lodo`, `in_domain`, `cross_domain` и `semantic_ood` используются 7 моделей и 3 режима обучения: `linear_probe`, `partial_finetune`, `full_finetune`.
 
 Все отдельные обучения запускаются одним CLI `scripts/train_lodo.py`. Для повторения другого seed достаточно передать `--seed`, например:
 
